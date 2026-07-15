@@ -1,0 +1,70 @@
+name: Deploy NESTED DAY CAFE to GitHub Pages
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare static site
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://nested-day-cafe.mieez204.chatgpt.site"
+          mkdir -p _site/assets
+          files=(
+            index.html About.dc.html CoffeeBeer.dc.html Gallery.dc.html
+            Home.dc.html Menu.dc.html SiteFooter.dc.html SiteHeader.dc.html
+            Visit.dc.html WhatsOn.dc.html fx.js store.js support.js
+            assets/favicon.png assets/img01-logo.webp
+            assets/img02-counter-800.webp assets/img02-counter.webp
+            assets/img03-space-800.webp assets/img03-space.webp
+            assets/img04-light-800.webp assets/img04-light.webp
+            assets/img05-frenchtoast-800.webp assets/img05-frenchtoast.webp
+            assets/img06-benedict-800.webp assets/img06-benedict.webp
+            assets/img07-sandwich-800.webp assets/img07-sandwich.webp
+            assets/img08-bread-800.webp assets/img08-bread.webp
+            assets/img09-beer-800.webp assets/img09-beer.webp
+            assets/img10-order-800.webp assets/img10-order.webp
+            assets/img11-exterior-800.webp assets/img11-exterior.webp
+            assets/img12-entrance-800.webp assets/img12-entrance.webp
+            assets/img13-stairs-800.webp assets/img13-stairs.webp
+            assets/img14-upstairs-door-800.webp assets/img14-upstairs-door.webp
+            assets/og.jpg
+          )
+          for file in "${files[@]}"; do
+            curl -fsSL "$base/$file" -o "_site/$file"
+          done
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          for path in Path("_site").rglob("*.html"):
+              text = path.read_text()
+              text = re.sub(r'<script>\(function\(\)\{function c\(\).*?</script>', '', text, flags=re.S)
+              path.write_text(text)
+          PY
+          touch _site/.nojekyll
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
